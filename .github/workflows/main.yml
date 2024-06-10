@@ -102,7 +102,7 @@ jobs:
     - name: Run start-ngrok.ps1 script
       run: pwsh -File ./start-ngrok.ps1
       env:
-        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
     - name: Download GitHub Actions Runner
       run: |
