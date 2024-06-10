@@ -54,7 +54,7 @@ jobs:
 
     - name: Configure Runner
       run: |
-        C:\actions-runner\config.cmd --url https://github.com/<owner>/<repo> --token ${{ secrets.ACTIONS_RUNNER_TOKEN }} --name my-self-hosted-runner --work _work --replace
+        C:\actions-runner\config.cmd --url https://github.com/yonksriRDP/yonksriRDP --token ${{ secrets.ACTIONS_RUNNER_TOKEN }} --name my-self-hosted-runner --work _work --replace
       env:
         ACTIONS_RUNNER_TOKEN: ${{ secrets.ACTIONS_RUNNER_TOKEN }}
 
