@@ -51,7 +51,7 @@ jobs:
       run: |
         $ngrokScript = @'
         # Start ngrok process
-        $ngrokProcess = Start-Process .\ngrok.exe -ArgumentList "tcp 3389 -log=stdout" -PassThru -NoNewWindow
+        $ngrokProcess = Start-Process .\ngrok.exe -ArgumentList "tcp 3389" -PassThru -NoNewWindow
 
         # Give ngrok some time to start
         Start-Sleep -Seconds 10
@@ -86,7 +86,7 @@ jobs:
         while ($true) {
             if (-not (Get-Process -Id $ngrokProcess.Id -ErrorAction SilentlyContinue)) {
                 Write-Output "ngrok process has stopped, restarting..."
-                $ngrokProcess = Start-Process .\ngrok.exe -ArgumentList "tcp 3389 -log=stdout" -PassThru -NoNewWindow
+                $ngrokProcess = Start-Process .\ngrok.exe -ArgumentList "tcp 3389" -PassThru -NoNewWindow
             }
             Start-Sleep -Seconds 300
         }
