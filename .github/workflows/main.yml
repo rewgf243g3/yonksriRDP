@@ -79,8 +79,12 @@ jobs:
             throw "Failed to create ngrok tunnel"
         }
 
-        # Loop to keep the script running
+        # Loop to keep the script running and monitor ngrok process
         while ($true) {
+            if (-not (Get-Process -Id $ngrokProcess.Id -ErrorAction SilentlyContinue)) {
+                Write-Output "ngrok process has stopped, restarting..."
+                $ngrokProcess = Start-Process .\ngrok.exe -ArgumentList "tcp 3389" -PassThru
+            }
             Start-Sleep -Seconds 300
         }
         '@
@@ -88,6 +92,7 @@ jobs:
         Set-Content -Path start-ngrok.ps1 -Value $ngrokScript
 
     - name: Run start-ngrok.ps1 script
-      run: .\start-ngrok.ps1
+      run: |
+        Start-Process -FilePath pwsh -ArgumentList '-File ./start-ngrok.ps1' -NoNewWindow
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
