@@ -1,11 +1,11 @@
-name: Setup Self-hosted Runner with Ngrok
+name: CI
 
 on:
   push:
   workflow_dispatch:
 
 jobs:
-  setup:
+  build:
     runs-on: windows-latest
 
     steps:
@@ -47,30 +47,29 @@ jobs:
         Start-Process -FilePath .\winrar-x64-601.exe -ArgumentList "/S" -Wait
         Write-Output "WinRAR installation completed."
 
-    - name: Download GitHub Actions Runner
+    - name: Download Avica
       run: |
-        Invoke-WebRequest -Uri "https://github.com/actions/runner/releases/download/v2.301.1/actions-runner-win-x64-2.301.1.zip" -OutFile "actions-runner-win-x64-2.301.1.zip"
-        Expand-Archive -Path "actions-runner-win-x64-2.301.1.zip" -DestinationPath "C:\actions-runner"
-
-    - name: Configure Runner
+        Invoke-WebRequest -Uri "https://download.avica.link/downloader/Avica_setup.exe" -OutFile "C:\Users\runneradmin\Downloads\Avica_setup.exe"
+        Write-Output "Avica downloaded to C:\Users\runneradmin\Downloads."
+        
+    - name: Download NetLimiter
       run: |
-        C:\actions-runner\config.cmd --url https://github.com/yonksriRDP/yonksriRDP --token ${{ secrets.ACTIONS_RUNNER_TOKEN }} --name my-self-hosted-runner --work _work --replace
-      env:
-        ACTIONS_RUNNER_TOKEN: ${{ secrets.ACTIONS_RUNNER_TOKEN }}
-
-    - name: Install Runner as a Service
-      run: C:\actions-runner\svcinstall.cmd
-
-    - name: Start Runner Service
-      run: Start-Service actions.runner.yonksriRDP.yonksriRDP.my-self-hosted-runner
+        Invoke-WebRequest -Uri "https://download.netlimiter.com/nl/netlimiter-5.3.13.0.exe" -OutFile "C:\Users\runneradmin\Downloads\netlimiter-5.3.13.0.exe"
+        Write-Output "NetLimiter downloaded to C:\Users\runneradmin\Downloads."
+        
+    - name: Download IDM
+      run: |
+        Invoke-WebRequest -Uri "https://mirror2.internetdownloadmanager.com/idman642build10.exe?v=lt&filename=idman642build10.exe" -OutFile "C:\Users\runneradmin\Downloads\idman642build10.exe"
+        Write-Output "IDM downloaded to C:\Users\runneradmin\Downloads."
+        
+    - name: Open File Explorer in Downloads
+      run: Start-Process -FilePath explorer.exe -ArgumentList "C:\Users\runneradmin\Downloads"
 
     - name: Create start-ngrok.ps1 script
       run: |
         $ngrokScript = @'
-        # Start ngrok process as a background job
-        $ngrokProcess = Start-Job -ScriptBlock {
-            Start-Process .\ngrok.exe -ArgumentList "tcp 3389" -Wait
-        }
+        # Start ngrok process
+        $ngrokProcess = Start-Process .\ngrok.exe -ArgumentList "tcp 3389" -PassThru
 
         # Give ngrok some time to start
         Start-Sleep -Seconds 10
@@ -94,22 +93,12 @@ jobs:
         }
 
         if (-not $ngrokUrl) {
-            Stop-Job -Id $ngrokProcess.Id -Force
+            Stop-Process -Id $ngrokProcess.Id
             throw "Failed to create ngrok tunnel"
         }
 
-        # Output the ngrok URL to a file
-        Set-Content -Path ngrok-url.txt -Value $ngrokUrl
-
-        # Monitor ngrok job to ensure it's running
+        # Loop to keep the script running
         while ($true) {
-            $jobState = (Get-Job -Id $ngrokProcess.Id).State
-            if ($jobState -ne 'Running') {
-                Write-Output "ngrok job has stopped, restarting..."
-                $ngrokProcess = Start-Job -ScriptBlock {
-                    Start-Process .\ngrok.exe -ArgumentList "tcp 3389" -Wait
-                }
-            }
             Start-Sleep -Seconds 300
         }
         '@
@@ -117,24 +106,6 @@ jobs:
         Set-Content -Path start-ngrok.ps1 -Value $ngrokScript
 
     - name: Run start-ngrok.ps1 script
-      run: pwsh -File ./start-ngrok.ps1
+      run: .\start-ngrok.ps1
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-
-    - name: Download GitHub Actions Runner
-      run: |
-        Invoke-WebRequest -Uri "https://github.com/actions/runner/releases/download/v2.301.1/actions-runner-win-x64-2.301.1.zip" -OutFile "actions-runner-win-x64-2.301.1.zip"
-        Expand-Archive -Path "actions-runner-win-x64-2.301.1.zip" -DestinationPath "C:\actions-runner"
-
-    - name: Configure Runner
-      run: |
-        C:\actions-runner\config.cmd --url https://github.com/<owner>/<repo> --token ${{ secrets.ACTIONS_RUNNER_TOKEN }} --name my-self-hosted-runner --work _work --replace
-      env:
-        ACTIONS_RUNNER_TOKEN: ${{ secrets.ACTIONS_RUNNER_TOKEN }}
-
-    - name: Install Runner as a Service
-      run: C:\actions-runner\svcinstall.cmd
-
-    - name: Start Runner Service
-      run: Start-Service actions.runner.yonksriRDP.yonksriRDP.my-self-hosted-runner
-
