@@ -1,11 +1,11 @@
-name: CI
+name: Setup Self-hosted Runner with Ngrok
 
 on:
   push:
   workflow_dispatch:
 
 jobs:
-  build:
+  setup:
     runs-on: windows-latest
 
     steps:
@@ -102,13 +102,22 @@ jobs:
     - name: Run start-ngrok.ps1 script
       run: pwsh -File ./start-ngrok.ps1
       env:
-        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }
 
-    - name: Output ngrok URL
+    - name: Download GitHub Actions Runner
       run: |
-        if (Test-Path -Path ./ngrok-url.txt) {
-            $ngrokUrl = Get-Content -Path ./ngrok-url.txt
-            Write-Output "ngrok URL: $ngrokUrl"
-        } else {
-            Write-Output "ngrok URL file not found"
-        }
+        Invoke-WebRequest -Uri "https://github.com/actions/runner/releases/download/v2.301.1/actions-runner-win-x64-2.301.1.zip" -OutFile "actions-runner-win-x64-2.301.1.zip"
+        Expand-Archive -Path "actions-runner-win-x64-2.301.1.zip" -DestinationPath "C:\actions-runner"
+
+    - name: Configure Runner
+      run: |
+        C:\actions-runner\config.cmd --url https://github.com/<owner>/<repo> --token ${{ secrets.ACTIONS_RUNNER_TOKEN }} --name my-self-hosted-runner --work _work --replace
+      env:
+        ACTIONS_RUNNER_TOKEN: ${{ secrets.ACTIONS_RUNNER_TOKEN }}
+
+    - name: Install Runner as a Service
+      run: C:\actions-runner\svcinstall.cmd
+
+    - name: Start Runner Service
+      run: Start-Service actions.runner.<owner>.<repo>.my-self-hosted-runner
+
