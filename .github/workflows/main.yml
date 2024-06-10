@@ -98,4 +98,4 @@ jobs:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
     - name: Wait for RDP to be accessible
-      run: Start-Sleep -Seconds 1200  # 20 minutes sleep to keep the job running and ngrok tunnel alive
+      run: Start-Sleep -Seconds 12  # 20 minutes sleep to keep the job running and ngrok tunnel alive
