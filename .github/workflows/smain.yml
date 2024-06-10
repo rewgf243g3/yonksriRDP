@@ -9,6 +9,12 @@ jobs:
     runs-on: self-hosted
 
     steps:
+    - name: Download ngrok
+      run: Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile ngrok.zip
+
+    - name: Extract ngrok
+      run: Expand-Archive -Path ngrok.zip -DestinationPath ./
+    
     - name: Authenticate with ngrok
       run: .\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
       env:
