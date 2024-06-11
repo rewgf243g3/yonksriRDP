@@ -6,64 +6,99 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
-    - name: Update and install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xrdp xfce4 xfce4-goodies
-        sudo systemctl enable xrdp
-        sudo systemctl start xrdp
-
     - name: Download ngrok
-      run: wget -O ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip
+      run: Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile ngrok.zip
 
     - name: Extract ngrok
-      run: unzip ngrok.zip
+      run: Expand-Archive -Path ngrok.zip -DestinationPath ./
 
     - name: Authenticate with ngrok
-      run: ./ngrok authtoken $NGROK_AUTH_TOKEN
+      run: .\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
-    - name: Set up user password
+    - name: Enable Remote Desktop
       run: |
-        echo "ubuntu:$RUNNERADMIN_PASSWORD" | sudo chpasswd
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+        
+        if (-not $Env:RUNNERADMIN_PASSWORD) {
+            throw "RUNNERADMIN_PASSWORD is not set"
+        }
+        
+        $securePassword = ConvertTo-SecureString -AsPlainText $Env:RUNNERADMIN_PASSWORD -Force
+        
+        if (Get-LocalUser -Name "runneradmin" -ErrorAction SilentlyContinue) {
+            Set-LocalUser -Name "runneradmin" -Password $securePassword
+        } else {
+            New-LocalUser -Name "runneradmin" -Password $securePassword -UserMayNotChangePassword -PasswordNeverExpires -AccountNeverExpires
+            Add-LocalGroupMember -Group "Administrators" -Member "runneradmin"
+        }
       env:
         RUNNERADMIN_PASSWORD: ${{ secrets.RUNNERADMIN_PASSWORD }}
 
-    - name: Create start-ngrok.sh script
+    - name: Download and install WinRAR
       run: |
-        cat << 'EOF' > start-ngrok.sh
-        #!/bin/bash
-        ./ngrok tcp 3389 &
-        NGROK_PID=$!
-        sleep 10
-        NGROK_URL=""
-        while true; do
-          TUNNELS=$(curl -s http://127.0.0.1:4040/api/tunnels)
-          if [[ $TUNNELS == *"public_url"* ]]; then
-            NGROK_URL=$(echo $TUNNELS | grep -o 'tcp://[^"]*')
-            echo "ngrok tunnel is available at: $NGROK_URL"
-            break
-          else
-            echo "Waiting for ngrok to initialize..."
-            sleep 5
-          fi
-        done
-        if [ -z "$NGROK_URL" ]; then
-          kill $NGROK_PID
-          echo "Failed to create ngrok tunnel"
-          exit 1
-        fi
-        while true; do
-          sleep 300
-        done
-        EOF
-        chmod +x start-ngrok.sh
+        Invoke-WebRequest -Uri "https://www.win-rar.com/fileadmin/winrar-versions/winrar/winrar-x64-601.exe" -OutFile winrar-x64-601.exe
+        Start-Process -FilePath .\winrar-x64-601.exe -ArgumentList "/S" -Wait
+        Write-Output "WinRAR installation completed."
 
-    - name: Run start-ngrok.sh script
-      run: ./start-ngrok.sh
+    - name: Download Avica
+      run: |
+        Invoke-WebRequest -Uri "https://download.avica.link/downloader/Avica_setup.exe" -OutFile "C:\Users\runneradmin\Downloads\Avica_setup.exe"
+        Write-Output "Avica downloaded to C:\Users\runneradmin\Downloads."
+        
+    - name: Download NetLimiter
+      run: |
+        Invoke-WebRequest -Uri "https://download.netlimiter.com/nl/netlimiter-5.3.13.0.exe" -OutFile "C:\Users\runneradmin\Downloads\netlimiter-5.3.13.0.exe"
+        Write-Output "NetLimiter downloaded to C:\Users\runneradmin\Downloads."
+        
+    - name: Download IDM
+      run: |
+        Invoke-WebRequest -Uri "https://mirror2.internetdownloadmanager.com/idman642build10.exe?v=lt&filename=idman642build10.exe" -OutFile "C:\Users\runneradmin\Downloads\idman642build10.exe"
+        Write-Output "IDM downloaded to C:\Users\runneradmin\Downloads."
+        
+    - name: Open File Explorer in Downloads
+      run: Start-Process -FilePath explorer.exe -ArgumentList "C:\Users\runneradmin\Downloads"
+
+    - name: Create start-ngrok.ps1 script
+      run: |
+        $ngrokScript = @'
+        # Start ngrok process
+        $ngrokProcess = Start-Process .\ngrok.exe -ArgumentList "tcp 3389" -PassThru
+        # Give ngrok some time to start
+        Start-Sleep -Seconds 10
+        # Initialize ngrok URL
+        $ngrokUrl = ""
+        # Try to fetch the ngrok public URL
+        while ($true) {
+            try {
+                $tunnels = Invoke-RestMethod -Uri http://127.0.0.1:4040/api/tunnels
+                if ($tunnels.tunnels) {
+                    $ngrokUrl = $tunnels.tunnels[0].public_url
+                    Write-Output "ngrok tunnel is available at: $ngrokUrl"
+                    break
+                }
+            } catch {
+                Write-Output "Waiting for ngrok to initialize..."
+                Start-Sleep -Seconds 5
+            }
+        }
+        if (-not $ngrokUrl) {
+            Stop-Process -Id $ngrokProcess.Id
+            throw "Failed to create ngrok tunnel"
+        }
+        # Loop to keep the script running
+        while ($true) {
+            Start-Sleep -Seconds 300
+        }
+        '@
+        Set-Content -Path start-ngrok.ps1 -Value $ngrokScript
+    - name: Run start-ngrok.ps1 script
+      run: .\start-ngrok.ps1
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
