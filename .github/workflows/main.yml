@@ -23,6 +23,7 @@ jobs:
     - name: Enable Remote Desktop (VNC)
       run: |
         sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate -configure -access -on -clientopts -setvnclegacy -vnclegacy yes -clientopts -setvncpw -vncpw $RUNNERADMIN_PASSWORD -restart -agent -privs -all
+        echo "Note: Ensure that Screen Sharing or Remote Management is enabled in System Settings for full functionality."
       env:
         RUNNERADMIN_PASSWORD: ${{ secrets.RUNNERADMIN_PASSWORD }}
 
@@ -32,22 +33,23 @@ jobs:
         echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> /Users/runner/.zprofile
         eval "$(/opt/homebrew/bin/brew shellenv)"
       
-    - name: Install Keka (WinRAR alternative)
-      run: brew install --cask keka
+    - name: Install Keka (macOS alternative to WinRAR)
+      run: |
+        brew install --cask keka
 
     - name: Download Avica
       run: |
-        curl -L -o ~/Downloads/Avica_setup.dmg https://download.avica.link/downloader/Avica_setup.dmg
+        curl -o ~/Downloads/Avica_setup.dmg https://download.avica.link/downloader/Avica_setup.dmg
         echo "Avica downloaded to ~/Downloads."
 
-    - name: Download Little Snitch (NetLimiter alternative)
+    - name: Download Little Snitch (macOS alternative to NetLimiter)
       run: |
-        curl -L -o ~/Downloads/littlesnitch.dmg https://www.obdev.at/downloads/littlesnitch/LittleSnitch-5.3.1.dmg
+        curl -o ~/Downloads/littlesnitch.dmg https://www.obdev.at/downloads/littlesnitch/LittleSnitch-5.3.1.dmg
         echo "Little Snitch downloaded to ~/Downloads."
 
-    - name: Download Folx (IDM alternative)
+    - name: Download Folx (macOS alternative to IDM)
       run: |
-        curl -L -o ~/Downloads/folx.dmg https://cdn.eltima.com/download/fm.dmg
+        curl -o ~/Downloads/folx.dmg https://cdn.eltima.com/download/fm.dmg
         echo "Folx downloaded to ~/Downloads."
 
     - name: Open Finder in Downloads
