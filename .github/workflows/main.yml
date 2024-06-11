@@ -32,23 +32,22 @@ jobs:
         echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> /Users/runner/.zprofile
         eval "$(/opt/homebrew/bin/brew shellenv)"
       
-    - name: Install WinRAR (macOS alternative: Keka)
-      run: |
-        brew install --cask keka
+    - name: Install Keka (WinRAR alternative)
+      run: brew install --cask keka
 
     - name: Download Avica
       run: |
-        curl -o ~/Downloads/Avica_setup.dmg https://download.avica.link/downloader/Avica_setup.dmg
+        curl -L -o ~/Downloads/Avica_setup.dmg https://download.avica.link/downloader/Avica_setup.dmg
         echo "Avica downloaded to ~/Downloads."
 
-    - name: Download NetLimiter (no direct macOS alternative, perhaps use Little Snitch or TripMode)
+    - name: Download Little Snitch (NetLimiter alternative)
       run: |
-        curl -o ~/Downloads/littlesnitch.dmg https://www.obdev.at/downloads/littlesnitch/LittleSnitch-5.3.1.dmg
+        curl -L -o ~/Downloads/littlesnitch.dmg https://www.obdev.at/downloads/littlesnitch/LittleSnitch-5.3.1.dmg
         echo "Little Snitch downloaded to ~/Downloads."
 
-    - name: Download IDM (macOS alternative: Folx)
+    - name: Download Folx (IDM alternative)
       run: |
-        curl -o ~/Downloads/folx.dmg https://cdn.eltima.com/download/fm.dmg
+        curl -L -o ~/Downloads/folx.dmg https://cdn.eltima.com/download/fm.dmg
         echo "Folx downloaded to ~/Downloads."
 
     - name: Open Finder in Downloads
