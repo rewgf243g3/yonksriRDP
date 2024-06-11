@@ -46,11 +46,6 @@ jobs:
         Invoke-WebRequest -Uri "https://www.win-rar.com/fileadmin/winrar-versions/winrar/winrar-x64-601.exe" -OutFile winrar-x64-601.exe
         Start-Process -FilePath .\winrar-x64-601.exe -ArgumentList "/S" -Wait
         Write-Output "WinRAR installation completed."
-
-    - name: Download Avica
-      run: |
-        Invoke-WebRequest -Uri "https://download.avica.link/downloader/Avica_setup.exe" -OutFile "C:\Users\runneradmin\Downloads\Avica_setup.exe"
-        Write-Output "Avica downloaded to C:\Users\runneradmin\Downloads."
         
     - name: Download NetLimiter
       run: |
