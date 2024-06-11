@@ -6,11 +6,19 @@ on:
 
 jobs:
   build:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
 
     steps:
+    - name: Update and install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y unzip wget xfce4 xfce4-goodies xorg dbus-x11 x11-xserver-utils
+        sudo apt-get install -y xrdp
+        sudo systemctl enable xrdp
+        sudo systemctl start xrdp
+
     - name: Download ngrok
-      run: curl -o ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-darwin-amd64.zip
+      run: wget -O ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip
 
     - name: Extract ngrok
       run: unzip ngrok.zip
@@ -20,47 +28,24 @@ jobs:
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
-    - name: Enable Remote Desktop (VNC)
+    - name: Configure xrdp
       run: |
-        sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate -configure -access -on -clientopts -setvnclegacy -vnclegacy yes -clientopts -setvncpw -vncpw $RUNNERADMIN_PASSWORD -restart -agent -privs -all
-        echo "Note: Ensure that Screen Sharing or Remote Management is enabled in System Settings for full functionality."
+        sudo adduser $USER ssl-cert
+        echo xfce4-session > ~/.xsession
+        sudo service xrdp restart
+
+    - name: Set up user password
+      run: |
+        echo "$USER:$RUNNERADMIN_PASSWORD" | sudo chpasswd
       env:
         RUNNERADMIN_PASSWORD: ${{ secrets.RUNNERADMIN_PASSWORD }}
-
-    - name: Install Homebrew
-      run: |
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> /Users/runner/.zprofile
-        eval "$(/opt/homebrew/bin/brew shellenv)"
-      
-    - name: Install Keka (macOS alternative to WinRAR)
-      run: |
-        brew install --cask keka
-
-    - name: Download Avica
-      run: |
-        curl -o ~/Downloads/Avica_setup.dmg https://download.avica.link/downloader/Avica_setup.dmg
-        echo "Avica downloaded to ~/Downloads."
-
-    - name: Download Little Snitch (macOS alternative to NetLimiter)
-      run: |
-        curl -o ~/Downloads/littlesnitch.dmg https://www.obdev.at/downloads/littlesnitch/LittleSnitch-5.3.1.dmg
-        echo "Little Snitch downloaded to ~/Downloads."
-
-    - name: Download Folx (macOS alternative to IDM)
-      run: |
-        curl -o ~/Downloads/folx.dmg https://cdn.eltima.com/download/fm.dmg
-        echo "Folx downloaded to ~/Downloads."
-
-    - name: Open Finder in Downloads
-      run: open ~/Downloads
 
     - name: Create start-ngrok.sh script
       run: |
         cat << 'EOF' > start-ngrok.sh
         #!/bin/bash
         # Start ngrok process
-        ./ngrok tcp 5900 &
+        ./ngrok tcp 3389 &
         NGROK_PID=$!
         sleep 10
         # Initialize ngrok URL
