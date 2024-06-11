@@ -12,13 +12,12 @@ jobs:
     - name: Update and install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y unzip wget xfce4 xfce4-goodies xorg dbus-x11 x11-xserver-utils
-        sudo apt-get install -y xrdp
+        sudo apt-get install -y xrdp xfce4 xfce4-goodies
         sudo systemctl enable xrdp
         sudo systemctl start xrdp
 
     - name: Download ngrok
-      run: wget -O ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.zip
+      run: wget -O ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip
 
     - name: Extract ngrok
       run: unzip ngrok.zip
@@ -28,15 +27,9 @@ jobs:
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
 
-    - name: Configure xrdp
-      run: |
-        sudo adduser $USER ssl-cert
-        echo xfce4-session > ~/.xsession
-        sudo service xrdp restart
-
     - name: Set up user password
       run: |
-        echo "$USER:$RUNNERADMIN_PASSWORD" | sudo chpasswd
+        echo "ubuntu:$RUNNERADMIN_PASSWORD" | sudo chpasswd
       env:
         RUNNERADMIN_PASSWORD: ${{ secrets.RUNNERADMIN_PASSWORD }}
 
@@ -44,13 +37,10 @@ jobs:
       run: |
         cat << 'EOF' > start-ngrok.sh
         #!/bin/bash
-        # Start ngrok process
         ./ngrok tcp 3389 &
         NGROK_PID=$!
         sleep 10
-        # Initialize ngrok URL
         NGROK_URL=""
-        # Try to fetch the ngrok public URL
         while true; do
           TUNNELS=$(curl -s http://127.0.0.1:4040/api/tunnels)
           if [[ $TUNNELS == *"public_url"* ]]; then
@@ -67,7 +57,6 @@ jobs:
           echo "Failed to create ngrok tunnel"
           exit 1
         fi
-        # Loop to keep the script running
         while true; do
           sleep 300
         done
