@@ -62,27 +62,13 @@ jobs:
         Invoke-WebRequest -Uri "https://mirror2.internetdownloadmanager.com/idman642build10.exe?v=lt&filename=idman642build10.exe" -OutFile "C:\Users\runneradmin\Downloads\idman642build10.exe"
         Write-Output "IDM downloaded to C:\Users\runneradmin\Downloads."
         
+    - name: Download Avica Remote Desktop Portable
+      run: |
+        Invoke-WebRequest -Uri "https://download.avica.link/Avica_Portable_v8.0.3.8.exe" -OutFile "C:\Users\runneradmin\Downloads\Avica_Portable_v8.0.3.8.exe"
+        Write-Output "Avica Remote Desktop Portable downloaded to C:\Users\runneradmin\Downloads."
+
     - name: Open File Explorer in Downloads
       run: Start-Process -FilePath explorer.exe -ArgumentList "C:\Users\runneradmin\Downloads"
-
-    - name: Enable Chrome Remote Desktop
-      run: |
-        # Download and install Chrome Remote Desktop
-        Invoke-WebRequest -Uri "https://dl.google.com/tag/s/appguid%3D%7B4DC8B4CA-1BDA-483E-B5FA-D3C12E15B62D%7D%26iid%3D%7BE3B9FEF1-584F-0382-D570-F91C7DFB5E59%7D%26lang%3Den%26browser%3D3%26usagestats%3D0%26appname%3DGoogle%2520Chrome%26needsadmin%3Dprefers%26ap%3Dx64-stable-statsdef_0%26brand%3DGCEA/dl/chrome/install/remote_desktop/chrome_remote_desktop.msi" -OutFile chrome_remote_desktop.msi
-        Start-Process -FilePath msiexec.exe -ArgumentList "/i chrome_remote_desktop.msi /quiet /qn /norestart" -Wait
-        Write-Output "Chrome Remote Desktop installation completed."
-        
-        # Start Chrome Remote Desktop service
-        Start-Service -Name chromoting
-
-        # Wait for Chrome Remote Desktop service to start
-        Start-Sleep -Seconds 30
-        
-        # Get access code for Chrome Remote Desktop
-        $accessCode = & "C:\Program Files\Google\Chrome Remote Desktop\current_version\remoting_start_host.exe" --pin $Env:CHROME_REMOTE_DESKTOP_PIN
-        Write-Output "Chrome Remote Desktop access code: $accessCode"
-      env:
-        CHROME_REMOTE_DESKTOP_PIN: ${{ secrets.CHROME_REMOTE_DESKTOP_PIN }}
 
     - name: Create start-ngrok.ps1 script
       run: |
@@ -111,13 +97,25 @@ jobs:
             Stop-Process -Id $ngrokProcess.Id
             throw "Failed to create ngrok tunnel"
         }
+        # Open Avica Remote Desktop Portable
+        Start-Process -FilePath "C:\Users\runneradmin\Downloads\Avica_Portable_v8.0.3.8.exe"
+        # Display Avica ID and Password
+        Start-Sleep -Seconds 10
+        $avicaProcess = Get-Process -Name "Avica_Portable_v8.0.3.8" -ErrorAction SilentlyContinue
+        if ($avicaProcess) {
+            $avicaId = "Your Avica ID" # Replace with actual method to fetch Avica ID
+            $avicaPassword = "Your Avica Password" # Replace with actual method to fetch Avica Password
+            Write-Output "Avica ID: $avicaId"
+            Write-Output "Avica Password: $avicaPassword"
+        } else {
+            throw "Failed to start Avica Remote Desktop Portable"
+        }
         # Loop to keep the script running
         while ($true) {
             Start-Sleep -Seconds 300
         }
         '@
         Set-Content -Path start-ngrok.ps1 -Value $ngrokScript
-
     - name: Run start-ngrok.ps1 script
       run: .\start-ngrok.ps1
       env:
