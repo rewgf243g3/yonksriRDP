@@ -12,14 +12,31 @@ jobs:
     - name: Update and install dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y xrdp xfce4 xfce4-goodies curl
+        sudo apt-get install -y xrdp xfce4 xfce4-goodies xorg dbus-x11 x11-xserver-utils curl
         sudo systemctl enable xrdp
 
     - name: Configure xrdp to use XFCE
       run: |
         echo xfce4-session > ~/.xsession
-        sudo bash -c 'echo "exec startxfce4" > /etc/xrdp/startwm.sh'
+        sudo bash -c 'echo "xfce4-session" > /etc/skel/.xsession'
+        sudo bash -c 'echo "startxfce4" > /etc/xrdp/startwm.sh'
         sudo systemctl restart xrdp
+
+    - name: Ensure the user ubuntu exists
+      run: |
+        if id "ubuntu" &>/dev/null; then
+            echo "User exists"
+        else
+            sudo useradd -m -s /bin/bash ubuntu
+        fi
+        sudo mkdir -p /home/ubuntu/.xrdp
+        sudo chown -R ubuntu:ubuntu /home/ubuntu
+
+    - name: Set up user password
+      run: |
+        echo "ubuntu:$RUNNERADMIN_PASSWORD" | sudo chpasswd
+      env:
+        RUNNERADMIN_PASSWORD: ${{ secrets.RUNNERADMIN_PASSWORD }}
 
     - name: Download ngrok
       run: wget -O ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip
@@ -31,20 +48,6 @@ jobs:
       run: ./ngrok authtoken $NGROK_AUTH_TOKEN
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-
-    - name: Ensure the user ubuntu exists
-      run: |
-        if id "ubuntu" &>/dev/null; then
-            echo "User exists"
-        else
-            sudo useradd -m -s /bin/bash ubuntu
-        fi
-
-    - name: Set up user password
-      run: |
-        echo "ubuntu:$RUNNERADMIN_PASSWORD" | sudo chpasswd
-      env:
-        RUNNERADMIN_PASSWORD: ${{ secrets.RUNNERADMIN_PASSWORD }}
 
     - name: Create start-ngrok.sh script
       run: |
