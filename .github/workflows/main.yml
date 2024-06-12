@@ -6,80 +6,132 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
-    - name: Update and install dependencies
+    - name: Download ngrok
       run: |
-        sudo apt-get update
-        sudo apt-get install -y xrdp xfce4 xfce4-goodies xorg dbus-x11 x11-xserver-utils curl
-        sudo systemctl enable xrdp
+        Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile ngrok.zip
+        Write-Output "ngrok downloaded."
 
-    - name: Configure xrdp to use XFCE
+    - name: Extract ngrok
       run: |
-        echo xfce4-session > ~/.xsession
-        sudo bash -c 'echo "xfce4-session" > /etc/skel/.xsession'
-        sudo bash -c 'echo "startxfce4" > /etc/xrdp/startwm.sh'
-        sudo systemctl restart xrdp
+        Expand-Archive -Path ngrok.zip -DestinationPath ./
+        Write-Output "ngrok extracted."
 
-    - name: Ensure the user ubuntu exists
+    - name: Authenticate with ngrok
+      run: .\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+        
+    - name: Enable Remote Desktop
       run: |
-        if id "ubuntu" &>/dev/null; then
-            echo "User exists"
-        else
-            sudo useradd -m -s /bin/bash ubuntu
-        fi
-        sudo mkdir -p /home/ubuntu/.xrdp
-        sudo chown -R ubuntu:ubuntu /home/ubuntu
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server' -Name "fDenyTSConnections" -Value 0
+        Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
+        Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
+        Write-Output "Remote Desktop enabled."
 
-    - name: Set up user password
-      run: |
-        echo "ubuntu:$RUNNERADMIN_PASSWORD" | sudo chpasswd
+        if (-not $Env:RUNNERADMIN_PASSWORD) {
+            throw "RUNNERADMIN_PASSWORD is not set"
+        }
+        
+        $securePassword = ConvertTo-SecureString -AsPlainText $Env:RUNNERADMIN_PASSWORD -Force
+        
+        if (Get-LocalUser -Name "runneradmin" -ErrorAction SilentlyContinue) {
+            Set-LocalUser -Name "runneradmin" -Password $securePassword
+        } else {
+            New-LocalUser -Name "runneradmin" -Password $securePassword -UserMayNotChangePassword -PasswordNeverExpires -AccountNeverExpires
+            Add-LocalGroupMember -Group "Administrators" -Member "runneradmin"
+        }
+        Write-Output "User runneradmin configured."
       env:
         RUNNERADMIN_PASSWORD: ${{ secrets.RUNNERADMIN_PASSWORD }}
 
-    - name: Download ngrok
-      run: wget -O ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip
-
-    - name: Extract ngrok
-      run: unzip ngrok.zip
-
-    - name: Authenticate with ngrok
-      run: ./ngrok authtoken $NGROK_AUTH_TOKEN
-      env:
-        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-
-    - name: Create start-ngrok.sh script
+    - name: Download and install WinRAR
       run: |
-        cat << 'EOF' > start-ngrok.sh
-        #!/bin/bash
-        ./ngrok tcp 3389 &
-        NGROK_PID=$!
-        sleep 10
-        NGROK_URL=""
-        while true; do
-          TUNNELS=$(curl -s http://127.0.0.1:4040/api/tunnels)
-          if [[ $TUNNELS == *"public_url"* ]]; then
-            NGROK_URL=$(echo $TUNNELS | grep -o 'tcp://[^"]*')
-            echo "ngrok tunnel is available at: $NGROK_URL"
-            break
-          else
-            echo "Waiting for ngrok to initialize..."
-            sleep 5
-          fi
-        done
-        if [ -z "$NGROK_URL" ]; then
-          kill $NGROK_PID
-          echo "Failed to create ngrok tunnel"
-          exit 1
-        fi
-        while true; do
-          sleep 300
-        done
-        EOF
-        chmod +x start-ngrok.sh
+        Invoke-WebRequest -Uri "https://www.win-rar.com/fileadmin/winrar-versions/winrar/winrar-x64-601.exe" -OutFile winrar-x64-601.exe
+        Start-Process -FilePath .\winrar-x64-601.exe -ArgumentList "/S" -Wait
+        Write-Output "WinRAR installation completed."
+        
+    - name: Download NetLimiter
+      run: |
+        Invoke-WebRequest -Uri "https://download.netlimiter.com/nl/netlimiter-5.3.13.0.exe" -OutFile "C:\Users\runneradmin\Downloads\netlimiter-5.3.13.0.exe"
+        Write-Output "NetLimiter downloaded to C:\Users\runneradmin\Downloads."
+        
+    - name: Download IDM
+      run: |
+        Invoke-WebRequest -Uri "https://mirror2.internetdownloadmanager.com/idman642build10.exe?v=lt&filename=idman642build10.exe" -OutFile "C:\Users\runneradmin\Downloads\idman642build10.exe"
+        Write-Output "IDM downloaded to C:\Users\runneradmin\Downloads."
+        
+    - name: Download Avica Remote Desktop Portable
+      run: |
+        Invoke-WebRequest -Uri "https://download.avica.link/Avica_Portable_v8.0.3.8.exe" -OutFile "C:\Users\runneradmin\Downloads\Avica_Portable_v8.0.3.8.exe"
+        Write-Output "Avica Remote Desktop Portable downloaded to C:\Users\runneradmin\Downloads."
 
-    - name: Run start-ngrok.sh script
-      run: ./start-ngrok.sh
+    - name: Open File Explorer in Downloads
+      run: |
+        Start-Process -FilePath explorer.exe -ArgumentList "C:\Users\runneradmin\Downloads"
+        Write-Output "File Explorer opened in Downloads."
+
+    - name: Create start-ngrok.ps1 script
+      run: |
+        $ngrokScript = @'
+        # Start ngrok process
+        $ngrokProcess = Start-Process .\ngrok.exe -ArgumentList "tcp 3389" -PassThru
+        Write-Output "ngrok process started with PID $($ngrokProcess.Id)."
+
+        # Give ngrok some time to start
+        Start-Sleep -Seconds 10
+        Write-Output "Waiting for ngrok to initialize..."
+
+        # Initialize ngrok URL
+        $ngrokUrl = ""
+
+        # Try to fetch the ngrok public URL
+        while ($true) {
+            try {
+                $tunnels = Invoke-RestMethod -Uri http://127.0.0.1:4040/api/tunnels
+                if ($tunnels.tunnels) {
+                    $ngrokUrl = $tunnels.tunnels[0].public_url
+                    Write-Output "ngrok tunnel is available at: $ngrokUrl"
+                    break
+                }
+            } catch {
+                Write-Output "Waiting for ngrok to initialize..."
+                Start-Sleep -Seconds 5
+            }
+        }
+
+        if (-not $ngrokUrl) {
+            Stop-Process -Id $ngrokProcess.Id
+            throw "Failed to create ngrok tunnel"
+        }
+
+        # Open Avica Remote Desktop Portable
+        Start-Process -FilePath "C:\Users\runneradmin\Downloads\Avica_Portable_v8.0.3.8.exe"
+        Write-Output "Started Avica Remote Desktop Portable."
+
+        # Display Avica ID and Password
+        Start-Sleep -Seconds 10
+        $avicaProcess = Get-Process -Name "Avica_Portable_v8.0.3.8" -ErrorAction SilentlyContinue
+        if ($avicaProcess) {
+            $avicaId = "Your Avica ID" # Replace with actual method to fetch Avica ID
+            $avicaPassword = "Your Avica Password" # Replace with actual method to fetch Avica Password
+            Write-Output "Avica ID: $avicaId"
+            Write-Output "Avica Password: $avicaPassword"
+        } else {
+            throw "Failed to start Avica Remote Desktop Portable"
+        }
+
+        # Loop to keep the script running
+        while ($true) {
+            Start-Sleep -Seconds 300
+        }
+        '@
+        Set-Content -Path start-ngrok.ps1 -Value $ngrokScript
+        Write-Output "start-ngrok.ps1 script created."
+
+    - name: Run start-ngrok.ps1 script
+      run: .\start-ngrok.ps1
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
