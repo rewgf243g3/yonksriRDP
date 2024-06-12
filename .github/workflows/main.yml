@@ -14,7 +14,12 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y xrdp xfce4 xfce4-goodies curl
         sudo systemctl enable xrdp
-        sudo systemctl start xrdp
+
+    - name: Configure xrdp to use XFCE
+      run: |
+        echo xfce4-session > ~/.xsession
+        sudo bash -c 'echo "exec startxfce4" > /etc/xrdp/startwm.sh'
+        sudo systemctl restart xrdp
 
     - name: Download ngrok
       run: wget -O ngrok.zip https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-stable-linux-amd64.zip
@@ -26,11 +31,6 @@ jobs:
       run: ./ngrok authtoken $NGROK_AUTH_TOKEN
       env:
         NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
-
-    - name: Create and configure xrdp session
-      run: |
-        echo xfce4-session > ~/.xsession
-        sudo systemctl restart xrdp
 
     - name: Ensure the user ubuntu exists
       run: |
