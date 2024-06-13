@@ -48,10 +48,20 @@ jobs:
         
   finalize:
     runs-on: windows-latest
-    needs: setup
+    needs: install
     timeout-minutes: 60
 
     steps:
+    - name: Download ngrok
+      run: |
+        Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile ngrok.zip
+        Expand-Archive -Path ngrok.zip -DestinationPath ./
+
+    - name: Authenticate with ngrok
+      run: .\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
+      env:
+        NGROK_AUTH_TOKEN: ${{ secrets.NGROK_AUTH_TOKEN }}
+    
     - name: Create ngrok tunnel to remote desktop
       run: |
         Start-Process .\ngrok.exe -ArgumentList "tcp 3389" -NoNewWindow
