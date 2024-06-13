@@ -5,9 +5,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  setup:
     runs-on: windows-latest
-    timeout-minutes: 360
+    timeout-minutes: 60
 
     steps:
     - name: Download ngrok
@@ -30,16 +30,27 @@ jobs:
         } else {
             New-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "P@ssw0rd!" -Force) -UserMayNotChangePassword -PasswordNeverExpires -AccountNeverExpires
             Add-LocalGroupMember -Group "Administrators" -Member "runneradmin"
-        }
-      
+
+  install:
+    runs-on: windows-latest
+    needs: setup
+    timeout-minutes: 60
+
+    steps:
     - name: Download and install WinRAR
       run: |
         Invoke-WebRequest -Uri "https://www.win-rar.com/fileadmin/winrar-versions/winrar/winrar-x64-601.exe" -OutFile winrar-x64-601.exe
         Start-Process -FilePath .\winrar-x64-601.exe -ArgumentList "/S" -Wait
-       
+
     - name: Download IDM
       run: Invoke-WebRequest -Uri "https://mirror2.internetdownloadmanager.com/idman642build10.exe?v=lt&filename=idman642build10.exe" -OutFile "C:\Users\runneradmin\Downloads\idman642build10.exe"
-      
+        
+  finalize:
+    runs-on: windows-latest
+    needs: install
+    timeout-minutes: 60
+
+    steps:
     - name: Create ngrok tunnel to remote desktop
       run: |
         Start-Process .\ngrok.exe -ArgumentList "tcp 3389" -NoNewWindow
