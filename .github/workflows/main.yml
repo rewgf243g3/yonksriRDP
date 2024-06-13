@@ -11,10 +11,9 @@ jobs:
 
     steps:
     - name: Download ngrok
-      run: Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile ngrok.zip
-
-    - name: Extract ngrok
-      run: Expand-Archive -Path ngrok.zip -DestinationPath ./
+      run: |
+        Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile ngrok.zip
+        Expand-Archive -Path ngrok.zip -DestinationPath ./
 
     - name: Authenticate with ngrok
       run: .\ngrok.exe authtoken $Env:NGROK_AUTH_TOKEN
@@ -32,44 +31,19 @@ jobs:
             New-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "P@ssw0rd!" -Force) -UserMayNotChangePassword -PasswordNeverExpires -AccountNeverExpires
             Add-LocalGroupMember -Group "Administrators" -Member "runneradmin"
         }
+      
     - name: Download and install WinRAR
       run: |
         Invoke-WebRequest -Uri "https://www.win-rar.com/fileadmin/winrar-versions/winrar/winrar-x64-601.exe" -OutFile winrar-x64-601.exe
         Start-Process -FilePath .\winrar-x64-601.exe -ArgumentList "/S" -Wait
-        Write-Output "WinRAR installation completed."
-    - name: Download Avica
-      run: |
-        Invoke-WebRequest -Uri "https://download.avica.link/downloader/Avica_setup.exe" -OutFile "C:\Users\runneradmin\Downloads\Avica_setup.exe"
-        Write-Output "Avica downloaded to C:\Users\runneradmin\Downloads."
-        
-    - name: Download NetLimiter
-      run: |
-        Invoke-WebRequest -Uri "https://download.netlimiter.com/nl/netlimiter-5.3.13.0.exe" -OutFile "C:\Users\runneradmin\Downloads\netlimiter-5.3.13.0.exe"
-        Write-Output "NetLimiter downloaded to C:\Users\runneradmin\Downloads."
+       
     - name: Download IDM
-      run: |
-        Invoke-WebRequest -Uri "https://mirror2.internetdownloadmanager.com/idman642build10.exe?v=lt&filename=idman642build10.exe" -OutFile "C:\Users\runneradmin\Downloads\idman642build10.exe"
-        Write-Output "IDM downloaded to C:\Users\runneradmin\Downloads."
-        
-    - name: Open File Explorer in Downloads
-      run: Start-Process -FilePath explorer.exe -ArgumentList "C:\Users\runneradmin\Downloads"
-
-    - name: Minimize provisioner.exe
-      run: |
-        $sig = '[DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);'
-        $showWindowAsync = Add-Type -MemberDefinition $sig -Name 'Win32ShowWindowAsync' -Namespace 'Win32Functions' -PassThru
-        $process = Get-Process -Name 'provisioner' -ErrorAction SilentlyContinue
-        if ($process) {
-          $process | ForEach-Object {
-            $showWindowAsync::ShowWindowAsync($_.MainWindowHandle, 6)  # Minimize window
-          }
-        }
-        Write-Output "provisioner.exe minimized."
+      run: Invoke-WebRequest -Uri "https://mirror2.internetdownloadmanager.com/idman642build10.exe?v=lt&filename=idman642build10.exe" -OutFile "C:\Users\runneradmin\Downloads\idman642build10.exe"
+      
     - name: Create ngrok tunnel to remote desktop
       run: |
         Start-Process .\ngrok.exe -ArgumentList "tcp 3389" -NoNewWindow
         Start-Sleep -Seconds 10
-        $ngrokUrl = ""
         while ($true) {
           try {
             $tunnels = Invoke-RestMethod -Uri http://127.0.0.1:4040/api/tunnels
