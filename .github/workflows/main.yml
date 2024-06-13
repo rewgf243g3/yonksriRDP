@@ -30,6 +30,7 @@ jobs:
         } else {
             New-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "P@ssw0rd!" -Force) -UserMayNotChangePassword -PasswordNeverExpires -AccountNeverExpires
             Add-LocalGroupMember -Group "Administrators" -Member "runneradmin"
+        }
 
   install:
     runs-on: windows-latest
